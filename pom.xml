@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.scijava</groupId>
+		<artifactId>pom-scijava</artifactId>
+		<version>38.0.1</version>
+		<relativePath />
+	</parent>
+
+	<groupId>com.elevans.fiji</groupId>
+	<artifactId>project-manager</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+
+	<name>Fiji Project Manager</name>
+	<description>Organize and manage multiple related images into projects/experiments with full OME metadata support</description>
+	<url>https://github.com/elevans/project_manager</url>
+	<inceptionYear>2026</inceptionYear>
+
+	<organization>
+		<name>elevans</name>
+		<url>https://github.com/elevans</url>
+	</organization>
+
+	<licenses>
+		<license>
+			<name>Simplified BSD License</name>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>elevans</id>
+			<name>Edward Evans</name>
+			<roles>
+				<role>lead</role>
+				<role>developer</role>
+			</roles>
+		</developer>
+	</developers>
+
+	<contributors>
+		<contributor>
+			<name>None</name>
+		</contributor>
+	</contributors>
+
+	<mailingLists>
+		<mailingList>
+			<name>Image.sc Forum</name>
+			<archive>https://forum.image.sc/</archive>
+		</mailingList>
+	</mailingLists>
+
+	<scm>
+		<connection>scm:git:https://github.com/elevans/project_manager</connection>
+		<developerConnection>scm:git:git@github.com:elevans/project_manager</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/elevans/project_manager</url>
+	</scm>
+
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/elevans/project_manager/issues</url>
+	</issueManagement>
+
+	<ciManagement>
+		<system>GitHub Actions</system>
+		<url>https://github.com/elevans/project_manager/actions</url>
+	</ciManagement>
+
+	<properties>
+		<scijava.jvm.build.version>21</scijava.jvm.build.version>
+		<scijava.jvm.version>21</scijava.jvm.version>
+		<license.licenseName>bsd_2</license.licenseName>
+		<license.copyrightOwners>elevans</license.copyrightOwners>
+		<!-- Pin Jackson version explicitly (not managed by pom-scijava 36) -->
+		<jackson.version>2.17.0</jackson.version>
+	</properties>
+
+	<repositories>
+		<repository>
+			<id>scijava.public</id>
+			<url>https://maven.scijava.org/content/groups/public</url>
+		</repository>
+	</repositories>
+
+	<dependencies>
+		<!-- ImageJ2 / Fiji Core -->
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>imagej-common</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>ij</artifactId>
+		</dependency>
+
+		<!-- SciJava -->
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scijava-common</artifactId>
+		</dependency>
+
+		<!-- ImageJ Swing UI -->
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>imagej-ui-swing</artifactId>
+		</dependency>
+
+		<!-- ImgLib2 -->
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2</artifactId>
+		</dependency>
+
+		<!-- OME / Bio-Formats (versions managed by pom-scijava) -->
+		<dependency>
+			<groupId>ome</groupId>
+			<artifactId>formats-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>ome</groupId>
+			<artifactId>formats-bsd</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.openmicroscopy</groupId>
+			<artifactId>ome-xml</artifactId>
+		</dependency>
+
+		<!-- JSON Serialization (Jackson) -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+
+
+		<!-- Logging (version managed by pom-scijava) -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
+
+		<!-- Testing (version managed by pom-scijava) -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+</project>
