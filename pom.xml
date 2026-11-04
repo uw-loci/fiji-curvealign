@@ -8,22 +8,22 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>38.0.1</version>
+		<version>45.1.0</version>
 		<relativePath />
 	</parent>
 
-	<groupId>com.elevans.fiji</groupId>
-	<artifactId>project-manager</artifactId>
+	<groupId>com.fiji.curvealign</groupId>
+	<artifactId>fiji-curvealign</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
 
-	<name>Fiji Project Manager</name>
-	<description>Organize and manage multiple related images into projects/experiments with full OME metadata support</description>
-	<url>https://github.com/elevans/project_manager</url>
+	<name>Fiji CurveAlign</name>
+	<description>Fiji plugin for tme-quant curvelet and fiber analysis using Appose</description>
+	<url>https://github.com/uw-loci/fiji-curvealign</url>
 	<inceptionYear>2026</inceptionYear>
 
 	<organization>
-		<name>elevans</name>
-		<url>https://github.com/elevans</url>
+		<name>uw-loci</name>
+		<url>https://github.com/uw-loci</url>
 	</organization>
 
 	<licenses>
@@ -58,20 +58,20 @@
 	</mailingLists>
 
 	<scm>
-		<connection>scm:git:https://github.com/elevans/project_manager</connection>
-		<developerConnection>scm:git:git@github.com:elevans/project_manager</developerConnection>
+		<connection>scm:git:https://github.com/uw-loci/fiji-curvealign</connection>
+		<developerConnection>scm:git:git@github.com:uw-loci/fiji-curvealign</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/elevans/project_manager</url>
+		<url>https://github.com/uw-loci/fiji-curvealign</url>
 	</scm>
 
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/elevans/project_manager/issues</url>
+		<url>https://github.com/uw-loci/fiji-curvealign/issues</url>
 	</issueManagement>
 
 	<ciManagement>
 		<system>GitHub Actions</system>
-		<url>https://github.com/elevans/project_manager/actions</url>
+		<url>https://github.com/uw-loci/fiji-curvealign/actions</url>
 	</ciManagement>
 
 	<properties>
@@ -79,8 +79,9 @@
 		<scijava.jvm.version>21</scijava.jvm.version>
 		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>elevans</license.copyrightOwners>
-		<!-- Pin Jackson version explicitly (not managed by pom-scijava 36) -->
+		<!-- Keep JSON parsing independent of parent POM version management. -->
 		<jackson.version>2.17.0</jackson.version>
+		<appose.version>0.12.0</appose.version>
 	</properties>
 
 	<repositories>
@@ -119,18 +120,15 @@
 			<artifactId>imglib2</artifactId>
 		</dependency>
 
-		<!-- OME / Bio-Formats (versions managed by pom-scijava) -->
+		<!-- Appose Python process and environment management -->
 		<dependency>
-			<groupId>ome</groupId>
-			<artifactId>formats-api</artifactId>
+			<groupId>org.apposed</groupId>
+			<artifactId>appose</artifactId>
+			<version>${appose.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>ome</groupId>
-			<artifactId>formats-bsd</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.openmicroscopy</groupId>
-			<artifactId>ome-xml</artifactId>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
 		</dependency>
 
 		<!-- JSON Serialization (Jackson) -->
