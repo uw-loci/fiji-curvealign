@@ -74,10 +74,11 @@
 		<license.copyrightOwners>Fiji developers.</license.copyrightOwners>
 		<license.projectName>Fiji CurveAlign.</license.projectName>
 
-		<scijava.jvm.version>17</scijava.jvm.version>
-		<scijava.jvm.build.version>[17,)</scijava.jvm.build.version>
+		<scijava.jvm.version>21</scijava.jvm.version>
+		<scijava.jvm.build.version>[21,)</scijava.jvm.build.version>
 
-		<org.apposed.appose.version>0.10.0</org.apposed.appose.version>
+		<org.apposed.appose.version>0.12.0</org.apposed.appose.version>
+		<net.imglib2.appose.version>0.9.0</net.imglib2.appose.version>
 	</properties>
 
 	<repositories>
@@ -112,6 +113,11 @@
 			<groupId>org.apposed</groupId>
 			<artifactId>appose</artifactId>
 			<version>${org.apposed.appose.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-appose</artifactId>
+			<version>${net.imglib2.appose.version}</version>
 		</dependency>
 
 		<dependency>
