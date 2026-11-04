@@ -1,0 +1,6 @@
+/target/
+/.idea/
+*.iml
+.DS_Store
+/ci-setup-github-actions.sh
+/ci-build.sh
