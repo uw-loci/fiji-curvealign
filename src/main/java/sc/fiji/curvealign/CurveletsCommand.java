@@ -14,12 +14,14 @@ import org.apposed.appose.NDArray;
 import org.apposed.appose.Service;
 import org.apposed.appose.Service.Task;
 import org.apposed.appose.Service.TaskStatus;
+import org.apposed.appose.TaskEvent;
 import org.scijava.ItemIO;
 import org.scijava.command.Command;
 import org.scijava.command.CommandService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
+import org.scijava.task.TaskService;
 import org.scijava.ui.UIService;
 
 import net.imagej.Dataset;
@@ -44,7 +46,11 @@ public class CurveletsCommand implements Command {
 	@Parameter
 	private Dataset inputImage;
 
-	@Parameter(label = "Boundary mask", required = false)
+	@Parameter(label = "Use boundary mask")
+	private boolean useBoundaryMask;
+
+	@Parameter(label = "Boundary mask", required = false,
+		description = "Only used when Use boundary mask is enabled.")
 	private Dataset boundaryMask;
 
 	@Parameter(label = "Analysis output directory (tables and plots)", style = "directory")
@@ -84,6 +90,9 @@ public class CurveletsCommand implements Command {
 	private PrefService prefService;
 
 	@Parameter
+	private TaskService taskService;
+
+	@Parameter
 	private CommandService commandService;
 
 	@Override
@@ -92,7 +101,11 @@ public class CurveletsCommand implements Command {
 		validateInputs(pythonEnvironment);
 		final Img<FloatType> image = asFloatImage(inputImage);
 		final ShmImg<FloatType> sharedImage = ShmImg.copyOf(image);
-		final ShmImg<FloatType> sharedMask = boundaryMask == null ? null : ShmImg.copyOf(asFloatImage(boundaryMask));
+		final ShmImg<FloatType> sharedMask = useBoundaryMask ?
+			ShmImg.copyOf(asFloatImage(boundaryMask)) : null;
+		final org.scijava.task.Task statusTask = taskService.createTask("Curvelets");
+		statusTask.setStatusMessage("Starting CurveAlign...");
+		statusTask.start();
 		try (Service python = Appose.wrap(pythonEnvironment).python()) {
 			final Map<String, Object> inputs = new HashMap<>();
 			inputs.put("img", sharedImage.ndArray());
@@ -105,11 +118,23 @@ public class CurveletsCommand implements Command {
 			inputs.put("distance_threshold", distanceThreshold);
 
 			final Task task = python.task(readWorkerScript(), inputs);
+			task.listen((final TaskEvent event) -> {
+				if (event.message != null && !event.message.isBlank()) {
+					statusTask.setStatusMessage(event.message);
+				}
+				if (event.maximum > 0) {
+					statusTask.setProgressMaximum(event.maximum);
+					statusTask.setProgressValue(event.current);
+				}
+			});
+			statusTask.setCancelCallBack(task::cancel);
+			statusTask.setStatusMessage("Running CurveAlign...");
 			task.start();
 			task.waitFor();
 			if (task.status != TaskStatus.COMPLETE) {
 				throw new IllegalStateException("CurveAlign Python task failed: " + task.error);
 			}
+			statusTask.setStatusMessage("Copying CurveAlign results into Fiji...");
 			overlay = copyColorImage((NDArray) task.outputs.get("overlay"), "Curvelets overlay");
 			heatmap = copyColorImage((NDArray) task.outputs.get("heatmap"), "Curvelets heatmap");
 			final NDArray reconstructionArray = (NDArray) task.outputs.get("reconstruction");
@@ -122,15 +147,19 @@ public class CurveletsCommand implements Command {
 				uiService.show(heatmap);
 				if (reconstruction != null) uiService.show(reconstruction);
 			}
+			statusTask.setStatusMessage("CurveAlign complete");
 		}
 		catch (final InterruptedException e) {
+			statusTask.setStatusMessage("CurveAlign interrupted");
 			Thread.currentThread().interrupt();
 			throw new RuntimeException("CurveAlign was interrupted", e);
 		}
 		catch (final Exception e) {
+			statusTask.setStatusMessage("CurveAlign failed");
 			throw new RuntimeException("CurveAlign failed", e);
 		}
 		finally {
+			statusTask.finish();
 			sharedImage.close();
 			if (sharedMask != null) sharedMask.close();
 		}
@@ -214,7 +243,10 @@ public class CurveletsCommand implements Command {
 		if (inputImage.numDimensions() != 2 || !(inputImage.getType() instanceof RealType<?>)) {
 			throw new IllegalArgumentException("Input must be a 2D scalar image.");
 		}
-		if (boundaryMask != null && (boundaryMask.numDimensions() != 2 ||
+		if (useBoundaryMask && boundaryMask == null) {
+			throw new IllegalArgumentException("Select a boundary mask or disable Use boundary mask.");
+		}
+		if (useBoundaryMask && (boundaryMask.numDimensions() != 2 ||
 			!(boundaryMask.getType() instanceof RealType<?>) ||
 			boundaryMask.dimension(0) != inputImage.dimension(0) ||
 			boundaryMask.dimension(1) != inputImage.dimension(1)))
