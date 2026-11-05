@@ -22,14 +22,14 @@ directory by the current Python API.
 
 ## TODO
 
-- Update the tme-quant Python API to return generated image data, including the
-	overlay, as arrays instead of proactively writing image files. Transfer those
-	arrays through Appose shared memory and expose them as ImageJ2 `Dataset`
-	outputs. Disk export should be optional and user-requested.
+- Test UDCT python library backend
+- Update python API to make file output optional
 - Provision and manage the tme-quant Python environment through Appose instead
 	of requiring users to select an existing `.venv`.
 - Improve CurveLab setup while respecting its license and the requirement that
 	users obtain and build the proprietary dependency locally.
+- Get something working on Windows!
+- Create Update Site for fiji plugin
 
 ## Development
 
