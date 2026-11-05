@@ -201,12 +201,8 @@ public class CurveletsCommand implements Command {
 	}
 
 	private static void releaseOutputArray(final NDArray array, final ShmImg<?> shared) {
-		try {
-			array.shm().unlink();
-		}
-		finally {
-			shared.close();
-		}
+		array.shm().unlinkOnClose(true);
+		shared.close();
 	}
 
 	private File configuredPythonEnvironment() {
