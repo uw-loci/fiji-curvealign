@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import numpy as np
+from appose import NDArray
 from pycurvelets.models import (
     AdvancedAnalysisOptions,
     BoundaryParameters,
@@ -19,8 +20,10 @@ from pycurvelets.models import (
 )
 from pycurvelets.process_image import process_image
 
-image = np.asarray(img).T
-mask = None if boundary_mask is None else np.asarray(boundary_mask).T
+image = np.asarray(img.ndarray()).T
+if image.ndim != 2:
+    raise ValueError(f"Expected a 2D input image, got shape {image.shape}.")
+mask = None if boundary_mask is None else np.asarray(boundary_mask.ndarray()).T
 output = Path(output_dir)
 output.mkdir(parents=True, exist_ok=True)
 
@@ -53,14 +56,28 @@ features = None if result is None else result.get("fib_feat_df")
 if features is None:
     raise RuntimeError("No fibers detected.")
 
-overlay_path = output / f"{img_name}_overlay.tiff"
-if not overlay_path.is_file():
-    raise RuntimeError(f"Expected overlay was not created: {overlay_path}")
+def to_appose_array(image):
+    image = np.asarray(image)
+    if image.ndim == 3 and image.shape[-1] >= 3:
+        rgb = image[..., :3].astype(np.uint32)
+        image = (
+            (np.uint32(255) << 24)
+            | (rgb[..., 0] << 16)
+            | (rgb[..., 1] << 8)
+            | rgb[..., 2]
+        )
+    else:
+        image = image.astype(np.float32, copy=False)
+    shared = NDArray(image.dtype.name, list(image.shape))
+    np.copyto(shared.ndarray(), image)
+    return shared
+
+for name, image in result["images"].items():
+    task.outputs[name] = to_appose_array(image)
 
 angles = features["fiber_absolute_angle"]
 summary = f"Fibers: {len(features)}; angle mean: {angles.mean():.2f}; std: {angles.std():.2f} degrees"
 if "alignment_mean" in features:
     summary += f"; alignment mean: {features['alignment_mean'].mean():.4f}"
 
-task.outputs["overlay_path"] = str(overlay_path)
 task.outputs["summary"] = summary
