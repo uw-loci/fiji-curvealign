@@ -6,6 +6,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 
 import org.apposed.appose.Appose;
 import org.apposed.appose.Service;
@@ -13,9 +15,11 @@ import org.apposed.appose.Service.Task;
 import org.apposed.appose.Service.TaskStatus;
 import org.scijava.ItemIO;
 import org.scijava.command.Command;
+import org.scijava.command.CommandService;
 import org.scijava.io.IOService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
+import org.scijava.prefs.PrefService;
 import org.scijava.ui.UIService;
 
 import net.imagej.Dataset;
@@ -28,16 +32,13 @@ import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
 
-@Plugin(type = Command.class, menuPath = "Plugins>CurveAlign>Run")
-public class CurveAlignCommand implements Command {
+@Plugin(type = Command.class, menuPath = "Plugins>CurveAlign>Curvelets")
+public class CurveletsCommand implements Command {
 	@Parameter
 	private Dataset inputImage;
 
 	@Parameter(label = "Boundary mask", required = false)
 	private Dataset boundaryMask;
-
-	@Parameter(label = "tme-quant Python environment", style = "directory")
-	private File pythonEnvironment;
 
 	@Parameter(label = "Output directory", style = "directory")
 	private File outputDirectory;
@@ -66,9 +67,16 @@ public class CurveAlignCommand implements Command {
 	@Parameter(required = false)
 	private UIService uiService;
 
+	@Parameter
+	private PrefService prefService;
+
+	@Parameter
+	private CommandService commandService;
+
 	@Override
 	public void run() {
-		validateInputs();
+		final File pythonEnvironment = configuredPythonEnvironment();
+		validateInputs(pythonEnvironment);
 		final Img<FloatType> image = asFloatImage(inputImage);
 		final ShmImg<FloatType> sharedImage = ShmImg.copyOf(image);
 		final ShmImg<FloatType> sharedMask = boundaryMask == null ? null : ShmImg.copyOf(asFloatImage(boundaryMask));
@@ -106,7 +114,37 @@ public class CurveAlignCommand implements Command {
 		}
 	}
 
-	private void validateInputs() {
+	private File configuredPythonEnvironment() {
+		String path = prefService.get(ConfigurePythonEnvironmentCommand.class,
+			ConfigurePythonEnvironmentCommand.PREFERENCE_KEY);
+		if (path == null || path.isBlank() ||
+			!ConfigurePythonEnvironmentCommand.isPythonEnvironment(new File(path)))
+		{
+			try {
+				commandService.run(ConfigurePythonEnvironmentCommand.class, true).get();
+			}
+			catch (final InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException("Interrupted while configuring the tme-quant environment.", e);
+			}
+			catch (final ExecutionException e) {
+				throw new IllegalStateException("Could not configure the tme-quant environment.", e.getCause());
+			}
+			catch (final CancellationException e) {
+				// Check the preference below to report cancellation consistently.
+			}
+			path = prefService.get(ConfigurePythonEnvironmentCommand.class,
+				ConfigurePythonEnvironmentCommand.PREFERENCE_KEY);
+		}
+		if (path == null || path.isBlank() ||
+			!ConfigurePythonEnvironmentCommand.isPythonEnvironment(new File(path)))
+		{
+			throw new IllegalStateException("No valid Python environment configured. Select the tme-quant .venv in Plugins > CurveAlign > Configure.");
+		}
+		return new File(path);
+	}
+
+	private void validateInputs(final File pythonEnvironment) {
 		if (inputImage.numDimensions() != 2 || !(inputImage.getType() instanceof RealType<?>)) {
 			throw new IllegalArgumentException("Input must be a 2D scalar image.");
 		}
@@ -117,7 +155,7 @@ public class CurveAlignCommand implements Command {
 		{
 			throw new IllegalArgumentException("Boundary mask must be a 2D scalar image matching the input dimensions.");
 		}
-		if (!pythonEnvironment.isDirectory()) {
+		if (!ConfigurePythonEnvironmentCommand.isPythonEnvironment(pythonEnvironment)) {
 			throw new IllegalArgumentException("Python environment directory does not exist: " + pythonEnvironment);
 		}
 		if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
@@ -152,7 +190,7 @@ public class CurveAlignCommand implements Command {
 	}
 
 	private static String readWorkerScript() throws IOException {
-		try (InputStream stream = CurveAlignCommand.class.getResourceAsStream("run_curvealign.py")) {
+		try (InputStream stream = CurveletsCommand.class.getResourceAsStream("run_curvealign.py")) {
 			if (stream == null) throw new IOException("Missing run_curvealign.py resource");
 			return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
 		}
