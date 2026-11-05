@@ -10,27 +10,34 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
 import org.apposed.appose.Appose;
+import org.apposed.appose.NDArray;
 import org.apposed.appose.Service;
 import org.apposed.appose.Service.Task;
 import org.apposed.appose.Service.TaskStatus;
 import org.scijava.ItemIO;
 import org.scijava.command.Command;
 import org.scijava.command.CommandService;
-import org.scijava.io.IOService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
 import org.scijava.ui.UIService;
 
 import net.imagej.Dataset;
+import net.imagej.DatasetService;
+import net.imagej.ImgPlus;
+import net.imagej.axis.Axes;
+import net.imagej.axis.AxisType;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.appose.ShmImg;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.ImgUtil;
 
 @Plugin(type = Command.class, menuPath = "Plugins>CurveAlign>Curvelets")
 public class CurveletsCommand implements Command {
@@ -40,7 +47,7 @@ public class CurveletsCommand implements Command {
 	@Parameter(label = "Boundary mask", required = false)
 	private Dataset boundaryMask;
 
-	@Parameter(label = "Output directory", style = "directory")
+	@Parameter(label = "Analysis output directory (tables and plots)", style = "directory")
 	private File outputDirectory;
 
 	@Parameter(label = "Curvelet coefficients to keep", min = "0.0", max = "1.0")
@@ -49,20 +56,26 @@ public class CurveletsCommand implements Command {
 	@Parameter(label = "Fiber mode (0=curvelet, 1-3=FIRE)", min = "0", max = "3")
 	private int fiberMode;
 
-	@Parameter(label = "CT-FIRE results directory", style = "directory", required = false)
+	@Parameter(label = "CT-FIRE results directory (FIRE modes 1-3 only)", style = "directory", required = false)
 	private File fireDirectory;
 
 	@Parameter(label = "Boundary distance threshold (pixels)", min = "0")
 	private double distanceThreshold = 100.0;
 
-	@Parameter(type = ItemIO.OUTPUT)
+	@Parameter(type = ItemIO.OUTPUT, label = "Overlay")
 	private Dataset overlay;
+
+	@Parameter(type = ItemIO.OUTPUT, label = "Heatmap")
+	private Dataset heatmap;
+
+	@Parameter(type = ItemIO.OUTPUT, label = "Reconstruction", required = false)
+	private Dataset reconstruction;
 
 	@Parameter(type = ItemIO.OUTPUT, label = "Fiber summary")
 	private String summary;
 
 	@Parameter
-	private IOService ioService;
+	private DatasetService datasetService;
 
 	@Parameter(required = false)
 	private UIService uiService;
@@ -97,9 +110,18 @@ public class CurveletsCommand implements Command {
 			if (task.status != TaskStatus.COMPLETE) {
 				throw new IllegalStateException("CurveAlign Python task failed: " + task.error);
 			}
-			overlay = (Dataset) ioService.open((String) task.outputs.get("overlay_path"));
+			overlay = copyColorImage((NDArray) task.outputs.get("overlay"), "Curvelets overlay");
+			heatmap = copyColorImage((NDArray) task.outputs.get("heatmap"), "Curvelets heatmap");
+			final NDArray reconstructionArray = (NDArray) task.outputs.get("reconstruction");
+			if (reconstructionArray != null) {
+				reconstruction = copyFloatImage(reconstructionArray, "Curvelet reconstruction");
+			}
 			summary = (String) task.outputs.get("summary");
-			if (uiService != null) uiService.show(overlay);
+			if (uiService != null) {
+				uiService.show(overlay);
+				uiService.show(heatmap);
+				if (reconstruction != null) uiService.show(reconstruction);
+			}
 		}
 		catch (final InterruptedException e) {
 			Thread.currentThread().interrupt();
@@ -111,6 +133,50 @@ public class CurveletsCommand implements Command {
 		finally {
 			sharedImage.close();
 			if (sharedMask != null) sharedMask.close();
+		}
+	}
+
+	private Dataset copyColorImage(final NDArray array, final String name) {
+		final ShmImg<UnsignedIntType> shared = new ShmImg<>(array);
+		try {
+			if (shared.numDimensions() != 2) {
+				throw new IllegalArgumentException("Expected a 2D packed color image.");
+			}
+			final Img<ARGBType> copy = ArrayImgs.argbs(shared.dimension(0), shared.dimension(1));
+			final Cursor<UnsignedIntType> source = shared.cursor();
+			final Cursor<ARGBType> destination = copy.cursor();
+			while (source.hasNext()) {
+				source.fwd();
+				destination.fwd();
+				destination.get().set((int) source.get().getIntegerLong());
+			}
+			return datasetService.create(new ImgPlus<ARGBType>(
+				copy, name, new AxisType[] { Axes.X, Axes.Y }));
+		}
+		finally {
+			releaseOutputArray(array, shared);
+		}
+	}
+
+	private Dataset copyFloatImage(final NDArray array, final String name) {
+		final ShmImg<FloatType> shared = new ShmImg<>(array);
+		try {
+			final Img<FloatType> copy = ArrayImgs.floats(shared.dimensionsAsLongArray());
+			ImgUtil.copy(shared, copy);
+			return datasetService.create(new ImgPlus<FloatType>(
+				copy, name, new AxisType[] { Axes.X, Axes.Y }));
+		}
+		finally {
+			releaseOutputArray(array, shared);
+		}
+	}
+
+	private static void releaseOutputArray(final NDArray array, final ShmImg<?> shared) {
+		try {
+			array.shm().unlink();
+		}
+		finally {
+			shared.close();
 		}
 	}
 
